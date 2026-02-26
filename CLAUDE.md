@@ -45,23 +45,23 @@ Senior-dev-mentoring-a-junior approach. Explain decisions, not just implementati
 ## Phase Status
 | Phase | Description | Status |
 |-------|-------------|--------|
-| 1 | Project scaffolding — repo, venv, directory structure, config system | **In progress** |
-| 2 | Zotero connector — fetch items + metadata via API | Pending |
+| 1 | Project scaffolding — repo, venv, directory structure, config system | **Complete** |
+| 2 | Zotero connector — fetch items + metadata via API | **Next up** |
 | 3 | PDF extractor — pull full text from local attachments | Pending |
 | 4 | Vocabulary generator — local LLM proposes controlled vocabulary | Pending |
 | 5 | Tag assigner — apply vocabulary with date-horizon logic | Pending |
 | 6 | Test harness — evaluate on random sample, iterate | Pending |
 | 7 | Docs + packaging | Pending |
 
-## Phase 1 Detail
-- [x] .gitignore
-- [x] Directory structure (src/zotero_autotag, config, tests, scripts, notebooks)
-- [x] Placeholder module files
-- [x] README.md
-- [x] Python 3.12 venv
-- [ ] Config system (settings.yaml + secrets.example.yaml + loader) — **next up**
-
-## Key Files (once created)
+## Key Files
 - `config/settings.yaml` — non-secret config (date horizon, model choices, etc.)
-- `config/secrets.yaml` — API keys and paths (git-ignored)
+- `config/secrets.yaml` — API keys and paths (git-ignored, never committed)
 - `config/secrets.example.yaml` — template committed to repo
+- `src/zotero_autotag/config.py` — loads and merges both config files
+- `scripts/verify_setup.py` — manual connection check (not a pytest test)
+
+## PDF Access Notes (relevant for Phase 3)
+- Local cache at `/Users/bkrien/Zotero/storage/` is partial (~2 orders of magnitude fewer than full collection)
+- Full collection is on WebDAV server (Raspberry Pi)
+- Plan: mount WebDAV share as network drive; code reads it like a local path
+- WebDAV credentials captured in secrets.yaml under `webdav:` key

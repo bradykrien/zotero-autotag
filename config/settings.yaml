@@ -1,0 +1,23 @@
+# ── Pipeline settings ─────────────────────────────────────────────────────────
+pipeline:
+  # Items added more than this many days ago will have tags overwritten.
+  # Items added within this window will only have tags added (never removed).
+  date_horizon_days: 30
+
+  # Maximum number of tags to assign to a single item.
+  max_tags_per_item: 5
+
+  # These tags are never added, changed, or removed by any part of the pipeline.
+  protected_tags:
+    - tbr
+
+# ── Model settings ────────────────────────────────────────────────────────────
+model:
+  # Ollama must be running locally for vocabulary generation.
+  provider: ollama
+  name: mistral
+  base_url: http://localhost:11434
+
+  # Model used for semantic similarity (tag assignment).
+  # This runs locally via sentence-transformers — no internet needed.
+  embedding_model: all-MiniLM-L6-v2
