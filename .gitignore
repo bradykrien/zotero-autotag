@@ -1,0 +1,34 @@
+# ── Python runtime artifacts ──────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# ── Virtual environment ───────────────────────────────────────────────────────
+venv/
+.venv/
+env/
+
+# ── Distribution / packaging ──────────────────────────────────────────────────
+dist/
+build/
+*.egg-info/
+*.egg
+
+# ── Testing & coverage ────────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ── Project secrets & local config ───────────────────────────────────────────
+config/secrets.yaml
+.env
+
+# ── macOS noise ───────────────────────────────────────────────────────────────
+.DS_Store
+
+# ── Editor noise ─────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
