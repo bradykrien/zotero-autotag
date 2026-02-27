@@ -64,7 +64,7 @@ class VocabGenerator:
         self,
         items: list[dict],
         existing_tags: list[str],
-        target_size: int = 65,
+        target_size: int = 50,
     ) -> list[str]:
         """
         Run the full vocabulary generation pipeline and return a list of tags.
@@ -214,7 +214,7 @@ Return ONLY a YAML list, nothing else:
         candidates_str = "\n".join(f"  - {t}" for t in candidates)
         existing_str = "\n".join(f"  - {t}" for t in sorted(existing_tags))
 
-        min_size = max(40, target_size - 10)
+        min_size = max(30, target_size - 10)
         max_size = target_size + 10
 
         prompt = f"""You are a librarian finalizing a controlled vocabulary for a humanities research library.
@@ -235,7 +235,8 @@ Create a final controlled vocabulary of {min_size}–{max_size} tags by:
    (e.g. "llm" and "llms" → "llms"; "dh" and "digital humanities" → "digital humanities")
 4. If the candidates don't reach {min_size} tags after merging, add new tags
    that cover important areas of the library's domains not yet represented
-5. Ensuring consistent style: lowercase noun phrases, 1-4 words
+5. Ensuring consistent style: lowercase noun phrases, 1-4 words,
+   spaces between words (e.g. "book history" not "book_history")
 
 Return ONLY a YAML list, nothing else:
 - tag one
@@ -254,7 +255,14 @@ Return ONLY a YAML list, nothing else:
                 print(f"  [WARN] Consolidation returned only {len(result)} tags, "
                       f"falling back to deduplicated candidates.")
                 return sorted(candidates[:target_size])
-            return result
+            # Deduplicate the consolidation output (LLMs occasionally repeat entries)
+            seen: set[str] = set()
+            deduped = []
+            for tag in result:
+                if tag not in seen:
+                    seen.add(tag)
+                    deduped.append(tag)
+            return deduped
         except Exception as e:
             print(f"  [WARN] Consolidation failed: {e}. Using raw candidates.")
             return sorted(candidates[:target_size])
@@ -318,6 +326,16 @@ def load_proposals(path: Path) -> list[str]:
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
 
+def _normalize_tag(tag) -> str:
+    """
+    Normalize a raw tag string to the project's style: lowercase, spaces.
+
+    LLMs sometimes return underscores instead of spaces (e.g. "book_history").
+    This converts them back and strips surrounding whitespace.
+    """
+    return str(tag).strip().lower().replace("_", " ")
+
+
 def _format_item(item: dict) -> str:
     """
     Produce a compact one-line summary of an item for use in LLM prompts.
@@ -351,8 +369,8 @@ def _parse_yaml_list(text: str) -> list[str]:
     try:
         parsed = yaml.safe_load(text.strip())
         if isinstance(parsed, list):
-            # Filter to strings only, strip whitespace
-            return [str(t).strip().lower() for t in parsed if t and str(t).strip()]
+            # Filter to strings only, normalize style
+            return [_normalize_tag(t) for t in parsed if t and str(t).strip()]
     except yaml.YAMLError:
         pass
 
@@ -361,7 +379,7 @@ def _parse_yaml_list(text: str) -> list[str]:
     for line in text.splitlines():
         line = line.strip()
         if line.startswith("- "):
-            tag = line[2:].strip().lower()
+            tag = _normalize_tag(line[2:])
             if tag:
                 tags.append(tag)
     return tags
