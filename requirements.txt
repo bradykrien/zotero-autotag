@@ -13,7 +13,7 @@ pandas>=2.0
 plotly>=5.0
 
 # Local LLM (Phase 4) — Ollama runs separately; this is the Python client
-# ollama
+ollama>=0.4
 
 # Semantic similarity / tag assignment (Phase 5)
 # sentence-transformers

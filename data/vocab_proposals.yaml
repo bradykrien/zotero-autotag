@@ -1,0 +1,37 @@
+# Proposed controlled vocabulary — review and edit before running Phase 5
+# Generated: 2026-02-26
+# Items analyzed: 1151  | Batches: 12  | Model: mistral
+#
+# Instructions:
+#   - Add, remove, or rename any tags
+#   - Keep style: lowercase noun phrases (e.g. 'book history', not 'historical')
+#   - This file is read directly by Phase 5 — save it when done editing
+
+vocabulary:
+  - academic writing
+  - ai
+  - archives
+  - bibliography
+  - bibliometrics
+  - book history
+  - book project comps
+  - coherence score
+  - digital humanities
+  - digital scholarship
+  - history and criticism
+  - history of science
+  - infometrics
+  - information science
+  - infrastructure
+  - llm
+  - ml
+  - network theory
+  - networking
+  - print culture
+  - productivity
+  - professional development
+  - research assessment
+  - research management
+  - time management
+  - topic modeling
+  - writing

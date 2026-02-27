@@ -23,9 +23,10 @@ Senior-dev-mentoring-a-junior approach. Explain decisions, not just implementati
 |-----------|------|
 | Language | Python |
 | Zotero API client | `pyzotero` |
-| Local LLM runtime | Ollama (Mistral 7B or Llama 3.2 3B) |
+| Local LLM runtime | Ollama (Mistral 7B) |
 | Tag assignment | `sentence-transformers` |
-| PDF extraction | TBD (`pdfminer` or `pypdf`) |
+| PDF extraction | `pdfminer.six` |
+| Dashboard | Streamlit + pandas + plotly |
 | Heavy compute | CHTC (UW–Madison) if needed |
 
 ## Business Logic
@@ -46,9 +47,10 @@ Senior-dev-mentoring-a-junior approach. Explain decisions, not just implementati
 | Phase | Description | Status |
 |-------|-------------|--------|
 | 1 | Project scaffolding — repo, venv, directory structure, config system | **Complete** |
-| 2 | Zotero connector — fetch items + metadata via API | **Next up** |
-| 3 | PDF extractor — pull full text from local attachments | Pending |
-| 4 | Vocabulary generator — local LLM proposes controlled vocabulary | Pending |
+| 2 | Zotero connector — fetch items + metadata via API | **Complete** |
+| 3 | PDF extractor — pull full text from local attachments + Streamlit dashboard | **Complete** |
+| 4 | Vocabulary generator — local LLM proposes controlled vocabulary | **In progress** |
+| 4.5 | Preview script — estimate per-tag coverage before Phase 5 | Pending |
 | 5 | Tag assigner — apply vocabulary with date-horizon logic | Pending |
 | 6 | Test harness — evaluate on random sample, iterate | Pending |
 | 7 | Docs + packaging | Pending |
@@ -58,10 +60,30 @@ Senior-dev-mentoring-a-junior approach. Explain decisions, not just implementati
 - `config/secrets.yaml` — API keys and paths (git-ignored, never committed)
 - `config/secrets.example.yaml` — template committed to repo
 - `src/zotero_autotag/config.py` — loads and merges both config files
+- `src/zotero_autotag/zotero_connector.py` — pyzotero wrapper; fetch + cache items
+- `src/zotero_autotag/pdf_extractor.py` — pdfminer.six extraction; enrich items with pdf_text
+- `src/zotero_autotag/vocab_generator.py` — Ollama batch sampling + consolidation
 - `scripts/verify_setup.py` — manual connection check (not a pytest test)
+- `scripts/fetch_items.py` — Phase 2: fetch library → `data/cache/items.json`
+- `scripts/extract_text.py` — Phase 3: PDF extraction → `data/cache/items_with_text.json`
+- `scripts/dashboard.py` — Phase 3: Streamlit dashboard for exploring the library
+- `scripts/generate_vocab.py` — Phase 4: propose vocabulary → `data/vocab_proposals.yaml`
+- `data/vocab_proposals.yaml` — git-tracked; human reviews/edits before Phase 5 runs
+
+## Cache Files (git-ignored, machine-local)
+- `data/cache/items.json` — raw Zotero items from Phase 2
+- `data/cache/items_with_text.json` — items enriched with PDF text from Phase 3
+
+## Pipeline Design Notes
+- Abstracts are NOT included in LLM prompts or PDF extraction (too noisy, inconsistent)
+- PDF extraction: max 20 pages per document (intro/early chapters have strongest signal)
+- Vocabulary generation: 12 batches × 30 items, stratified by item type; consolidation targets ~65 tags
+- `vocab_proposals.yaml` is committed to git — it represents a human decision, not machine state
+- Resumable extraction: `extract_text.py` skips already-processed items; checkpoints every 100
 
 ## PDF Access Notes (relevant for Phase 3)
-- Local cache at `/Users/bkrien/Zotero/storage/` is partial (~2 orders of magnitude fewer than full collection)
+- Local cache at `/Users/bkrien/Zotero/storage/` is partial (~884/1151 items have PDFs)
 - Full collection is on WebDAV server (Raspberry Pi)
 - Plan: mount WebDAV share as network drive; code reads it like a local path
 - WebDAV credentials captured in secrets.yaml under `webdav:` key
+- PDF text source tracked per item: "local", "webdav", or None
