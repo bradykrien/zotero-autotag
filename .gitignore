@@ -25,6 +25,9 @@ htmlcov/
 config/secrets.yaml
 .env
 
+# ── Pipeline cache (local to each machine, never committed) ───────────────────
+data/cache/
+
 # ── macOS noise ───────────────────────────────────────────────────────────────
 .DS_Store
 
