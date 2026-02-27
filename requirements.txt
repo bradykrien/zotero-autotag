@@ -5,10 +5,18 @@ pyyaml>=6.0
 pyzotero>=1.5
 
 # PDF extraction (Phase 3)
-# pdfminer.six
+pdfminer.six>=20221105
+
+# Dashboard (Phase 3)
+streamlit>=1.30
+pandas>=2.0
+plotly>=5.0
 
 # Local LLM (Phase 4) — Ollama runs separately; this is the Python client
-# ollama
+ollama>=0.4
 
 # Semantic similarity / tag assignment (Phase 5)
-# sentence-transformers
+# sentence-transformers 3.x+ requires torch>=2.4, which is unavailable on Intel Mac.
+# Pin to 2.x and numpy<2 to maintain compatibility with torch 2.2.2 (Intel Mac max).
+sentence-transformers>=2.2,<3.0
+numpy<2

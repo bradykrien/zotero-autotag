@@ -83,7 +83,7 @@ def check_local_storage(config):
 
 
 def check_webdav_mount(config):
-    """Confirm the WebDAV mount point exists and is readable."""
+    """Confirm the WebDAV mount is readable and can yield PDF text."""
     print("\n── 4. WebDAV mount ──────────────────────────────────")
     mount_str = config.get("paths", {}).get("webdav_mount", "")
 
@@ -91,7 +91,7 @@ def check_webdav_mount(config):
         print("  [SKIP] webdav_mount not set in secrets.yaml")
         return
 
-    mount_path = Path(mount_str)
+    mount_path = Path(mount_str).expanduser()
 
     if not mount_path.exists():
         print(f"  [FAIL] Mount point not found: {mount_path}")
@@ -101,10 +101,32 @@ def check_webdav_mount(config):
 
     try:
         entries = list(mount_path.iterdir())
-        print(f"  [OK] Mount accessible: {mount_path}")
-        print(f"       Items at mount root: {len(entries)}")
     except PermissionError:
         print(f"  [FAIL] Path exists but cannot be read: {mount_path}")
+        return
+
+    # Zotero WebDAV stores each attachment as <key>.zip — count those specifically
+    zips = [e for e in entries if e.suffix == ".zip"]
+    print(f"  [OK] Mount accessible: {mount_path}")
+    print(f"       Attachment zips  : {len(zips)}")
+
+    if not zips:
+        print("  [WARN] No .zip files found — is this the right mount path?")
+        return
+
+    # Spot-test: extract text from the first zip to confirm the pipeline works
+    try:
+        from zotero_autotag.pdf_extractor import extract_text_from_zip
+        sample_zip = zips[0]
+        text = extract_text_from_zip(sample_zip)
+        if text:
+            print(f"  [OK] Extraction test passed ({len(text):,} chars from {sample_zip.stem})")
+            print(f"       Preview: {text[:120].replace(chr(10), ' ')!r}")
+        else:
+            print(f"  [WARN] Zip opened but extraction returned no text ({sample_zip.stem})")
+            print("         This zip may be a scanned/image PDF — others may work fine")
+    except Exception as e:
+        print(f"  [FAIL] Could not extract text from sample zip: {e}")
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
