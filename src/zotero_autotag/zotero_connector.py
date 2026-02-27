@@ -9,6 +9,7 @@ reload items without hitting the API again.
 """
 
 import json
+import time
 from pathlib import Path
 
 from pyzotero import zotero
@@ -98,6 +99,70 @@ class ZoteroConnector:
 
         print(f"  Found {len(attachment_map)} items with PDF attachments.")
         return attachment_map
+
+    def update_item_tags(self, key: str, tags: list[str]) -> bool:
+        """
+        Replace the tags on a single Zotero item.
+
+        pyzotero requires a fetch-then-update pattern: we must retrieve the
+        current item (including its version metadata) before we can write.
+        The version number is used by the Zotero API for conflict detection —
+        if the item was modified elsewhere since we fetched it, the write will
+        be rejected rather than silently overwriting newer data.
+
+        Returns True on success, False if an error occurred.
+        """
+        try:
+            results = self.zot.items(itemKey=key)
+            if not results:
+                print(f"  [WARN] Item {key} not found in Zotero")
+                return False
+            item_response = results[0]
+            # Zotero API expects tags as a list of dicts: [{"tag": "name"}, ...]
+            item_response["data"]["tags"] = [{"tag": t} for t in tags]
+            self.zot.update_item(item_response)
+            return True
+        except Exception as e:
+            print(f"  [WARN] Failed to update {key}: {e}")
+            return False
+
+    def write_assignments(self, assignments: list[dict]) -> dict:
+        """
+        Write tag assignments to Zotero for all non-skipped items.
+
+        Sleeps 0.5 seconds between writes to stay within the Zotero API rate
+        limit (~2 writes/second for personal libraries). With 1,151 items this
+        takes roughly 10 minutes — progress is printed throughout.
+
+        Returns a summary dict: {"success": N, "failed": N, "skipped": N}.
+        """
+        counts = {"success": 0, "failed": 0, "skipped": 0}
+
+        to_write = [a for a in assignments if a["status"] != "skipped"]
+        skipped = len(assignments) - len(to_write)
+        counts["skipped"] = skipped
+
+        print(f"  Writing {len(to_write)} items to Zotero ({skipped} skipped)...")
+
+        for i, assignment in enumerate(to_write, 1):
+            key = assignment["key"]
+            title = assignment["title"][:60]
+            tags = assignment["final_tags"]
+
+            ok = self.update_item_tags(key, tags)
+            status = "[OK]" if ok else "[FAIL]"
+            print(f"  {status} ({i}/{len(to_write)}) {title!r} → {tags}")
+
+            if ok:
+                counts["success"] += 1
+            else:
+                counts["failed"] += 1
+
+            # Rate-limit: Zotero's API allows ~2 writes/second for personal libraries.
+            # 0.5s sleep is conservative and avoids 429 errors.
+            time.sleep(0.5)
+
+        return counts
 
     def _clean_item(self, raw: dict) -> dict:
         """

@@ -16,4 +16,7 @@ plotly>=5.0
 ollama>=0.4
 
 # Semantic similarity / tag assignment (Phase 5)
-# sentence-transformers
+# sentence-transformers 3.x+ requires torch>=2.4, which is unavailable on Intel Mac.
+# Pin to 2.x and numpy<2 to maintain compatibility with torch 2.2.2 (Intel Mac max).
+sentence-transformers>=2.2,<3.0
+numpy<2
