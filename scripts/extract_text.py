@@ -154,8 +154,11 @@ def _print_summary(items: list[dict]) -> None:
     print(f"  PDF found (webdav) : {webdav}")
     print(f"  No PDF found       : {no_pdf}")
     print(f"  ─────────────────────────────")
-    print(f"  Usable text        : {has_text}  "
-          f"(PDFs found but below text threshold: {local + webdav - has_text})")
+    pdf_found = local + webdav
+    scanned = max(0, pdf_found - has_text)  # PDFs opened but returned no usable text
+    untracked = has_text - min(has_text, pdf_found)  # text exists but source not recorded
+    note = f"scanned/image PDFs: {scanned}" if not untracked else f"source untracked (old cache): {untracked}"
+    print(f"  Usable text        : {has_text}  ({note})")
     print(f"  Total              : {len(items)}")
 
 
