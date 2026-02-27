@@ -17,6 +17,7 @@ Later pipeline stages treat None as a signal to fall back to title + creators.
 import io
 import logging
 import re
+import zipfile
 from pathlib import Path
 
 from pdfminer.high_level import extract_text_to_fp
@@ -67,6 +68,37 @@ def extract_text(pdf_path: Path, max_pages: int = 20) -> str | None:
         return None
 
 
+def extract_text_from_zip(zip_path: Path, max_pages: int = 20) -> str | None:
+    """
+    Extract PDF text from a Zotero WebDAV zip archive.
+
+    Zotero's WebDAV sync stores each attachment as <key>.zip containing
+    a single file named 'full-text.pdf'. This opens the zip in memory,
+    reads the PDF bytes, and passes them directly to pdfminer — no temp
+    files needed.
+
+    Returns cleaned text, or None if extraction fails or yields too little text.
+    """
+    try:
+        with zipfile.ZipFile(zip_path) as zf:
+            pdf_names = [n for n in zf.namelist() if n.lower().endswith(".pdf")]
+            if not pdf_names:
+                return None
+            pdf_bytes = zf.read(pdf_names[0])
+
+        output = io.StringIO()
+        extract_text_to_fp(
+            io.BytesIO(pdf_bytes),
+            output,
+            laparams=LAParams(),
+            maxpages=max_pages,
+        )
+        text = clean_text(output.getvalue())
+        return text if len(text) >= MIN_TEXT_CHARS else None
+    except Exception:
+        return None
+
+
 def enrich_items(
     items: list[dict],
     attachment_map: dict[str, str],
@@ -97,12 +129,24 @@ def enrich_items(
 
         pdf_path, source = None, None
         if attachment_key:
-            pdf_path, source = _find_pdf(attachment_key, storage_path, webdav_path)
+            # Check local storage first (faster, no network)
+            pdf_path, source = _find_pdf(attachment_key, storage_path, webdav_path=None)
 
         if pdf_path:
             item["pdf_text"] = extract_text(pdf_path, max_pages)
             item["pdf_text_source"] = source
             counts[source] += 1
+        elif attachment_key and webdav_path:
+            # WebDAV stores attachments as <key>.zip containing full-text.pdf
+            zip_path = _find_webdav_zip(attachment_key, webdav_path)
+            if zip_path:
+                item["pdf_text"] = extract_text_from_zip(zip_path, max_pages)
+                item["pdf_text_source"] = "webdav"
+                counts["webdav"] += 1
+            else:
+                item["pdf_text"] = None
+                item["pdf_text_source"] = None
+                counts["none"] += 1
         else:
             item["pdf_text"] = None
             item["pdf_text_source"] = None
@@ -169,3 +213,14 @@ def _find_pdf(
             return pdfs[0], source
 
     return None, None
+
+
+def _find_webdav_zip(attachment_key: str, webdav_path: Path) -> Path | None:
+    """
+    Return the zip archive path if this attachment exists in WebDAV storage.
+
+    Zotero's WebDAV sync format: <webdav_root>/<attachment_key>.zip
+    Returns None if the zip doesn't exist.
+    """
+    zip_path = webdav_path / f"{attachment_key}.zip"
+    return zip_path if zip_path.exists() else None
