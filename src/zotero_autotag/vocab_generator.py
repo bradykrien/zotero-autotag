@@ -23,7 +23,6 @@ import re
 from datetime import date
 from pathlib import Path
 
-import ollama
 import yaml
 
 
@@ -186,6 +185,7 @@ Return ONLY a YAML list, nothing else:
 ..."""
 
         try:
+            import ollama
             client = ollama.Client(host=self.host)
             response = client.chat(
                 model=self.model,
@@ -244,6 +244,7 @@ Return ONLY a YAML list, nothing else:
 ..."""
 
         try:
+            import ollama
             client = ollama.Client(host=self.host)
             response = client.chat(
                 model=self.model,
