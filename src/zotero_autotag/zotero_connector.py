@@ -68,6 +68,37 @@ class ZoteroConnector:
 
         return [self._clean_item(item) for item in raw_items]
 
+    def fetch_attachment_map(self) -> dict[str, str]:
+        """
+        Return a mapping of {parent_item_key: attachment_item_key} for all
+        PDF attachments in the library.
+
+        We need this because Zotero's storage directory is keyed by attachment
+        key, not parent key:
+            storage/ABCD1234/paper.pdf   ← ABCD1234 is the attachment key
+
+        This method fetches all attachment items from the API, filters to PDFs,
+        and returns a dict so pdf_extractor.py can look up the right folder.
+        If a parent has multiple PDF attachments, we take the first one.
+        """
+        print("Fetching attachment map from Zotero API...")
+        raw_attachments = self.zot.everything(self.zot.items(itemType="attachment"))
+
+        attachment_map = {}
+        for att in raw_attachments:
+            data = att["data"]
+            if data.get("contentType") != "application/pdf":
+                continue
+            parent_key = data.get("parentItem")
+            if not parent_key:
+                continue
+            # Keep only the first PDF attachment per parent
+            if parent_key not in attachment_map:
+                attachment_map[parent_key] = data["key"]
+
+        print(f"  Found {len(attachment_map)} items with PDF attachments.")
+        return attachment_map
+
     def _clean_item(self, raw: dict) -> dict:
         """
         Extract only the fields the pipeline needs from a raw pyzotero item.

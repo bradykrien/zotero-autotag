@@ -5,7 +5,12 @@ pyyaml>=6.0
 pyzotero>=1.5
 
 # PDF extraction (Phase 3)
-# pdfminer.six
+pdfminer.six>=20221105
+
+# Dashboard (Phase 3)
+streamlit>=1.30
+pandas>=2.0
+plotly>=5.0
 
 # Local LLM (Phase 4) — Ollama runs separately; this is the Python client
 # ollama

@@ -21,3 +21,9 @@ model:
   # Model used for semantic similarity (tag assignment).
   # This runs locally via sentence-transformers — no internet needed.
   embedding_model: all-MiniLM-L6-v2
+
+# ── PDF extraction settings ───────────────────────────────────────────────────
+pdf:
+  # Number of pages to extract per PDF. 20 pages captures the intro and early
+  # chapters where topical signal is strongest, without processing entire books.
+  max_pages: 20
