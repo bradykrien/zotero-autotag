@@ -49,30 +49,33 @@ Senior-dev-mentoring-a-junior approach. Explain decisions, not just implementati
 | 1 | Project scaffolding — repo, venv, directory structure, config system | **Complete** |
 | 2 | Zotero connector — fetch items + metadata via API | **Complete** |
 | 3 | PDF extractor — pull full text from local attachments + Streamlit dashboard | **Complete** |
-| 4 | Vocabulary generator — local LLM proposes controlled vocabulary | **In progress** |
-| 4.5 | Preview script — estimate per-tag coverage before Phase 5 | Pending |
-| 5 | Tag assigner — apply vocabulary with date-horizon logic | Pending |
+| 4 | Vocabulary generator — local LLM proposes controlled vocabulary | **Complete** |
+| 4.5 | Preview script — estimate per-tag coverage before Phase 5 | **Dropped** (Phase 5 dry-run serves this purpose) |
+| 5 | Tag assigner — apply vocabulary with date-horizon logic | **Dry run complete — awaiting review + apply** |
 | 6 | Test harness — evaluate on random sample, iterate | Pending |
 | 7 | Docs + packaging | Pending |
 
 ## Key Files
-- `config/settings.yaml` — non-secret config (date horizon, model choices, etc.)
+- `config/settings.yaml` — non-secret config (date horizon, model choices, similarity threshold, etc.)
 - `config/secrets.yaml` — API keys and paths (git-ignored, never committed)
 - `config/secrets.example.yaml` — template committed to repo
 - `src/zotero_autotag/config.py` — loads and merges both config files
-- `src/zotero_autotag/zotero_connector.py` — pyzotero wrapper; fetch + cache items
-- `src/zotero_autotag/pdf_extractor.py` — pdfminer.six extraction; enrich items with pdf_text
-- `src/zotero_autotag/vocab_generator.py` — Ollama batch sampling + consolidation
+- `src/zotero_autotag/zotero_connector.py` — pyzotero wrapper; fetch + cache items; write tags back to Zotero
+- `src/zotero_autotag/pdf_extractor.py` — pdfminer.six extraction; enrich items with pdf_text; WebDAV zip support
+- `src/zotero_autotag/vocab_generator.py` — Ollama batch sampling + consolidation; load_proposals()
+- `src/zotero_autotag/tag_assigner.py` — sentence-transformers cosine similarity; business logic (skip/overwrite/add-only)
 - `scripts/verify_setup.py` — manual connection check (not a pytest test)
 - `scripts/fetch_items.py` — Phase 2: fetch library → `data/cache/items.json`
 - `scripts/extract_text.py` — Phase 3: PDF extraction → `data/cache/items_with_text.json`
 - `scripts/dashboard.py` — Phase 3: Streamlit dashboard for exploring the library
 - `scripts/generate_vocab.py` — Phase 4: propose vocabulary → `data/vocab_proposals.yaml`
-- `data/vocab_proposals.yaml` — git-tracked; human reviews/edits before Phase 5 runs
+- `scripts/assign_tags.py` — Phase 5: dry-run (default) or `--apply` to write to Zotero; `--limit N` for testing
+- `data/vocab_proposals.yaml` — git-tracked; 39 approved tags; human-reviewed before Phase 5
 
 ## Cache Files (git-ignored, machine-local)
-- `data/cache/items.json` — raw Zotero items from Phase 2
+- `data/cache/items.json` — raw items from Phase 2
 - `data/cache/items_with_text.json` — items enriched with PDF text from Phase 3
+- `data/cache/tag_assignments.json` — Phase 5 dry-run preview; read by `--apply`
 
 ## Pipeline Design Notes
 - Abstracts are NOT included in LLM prompts or PDF extraction (too noisy, inconsistent)
@@ -81,9 +84,9 @@ Senior-dev-mentoring-a-junior approach. Explain decisions, not just implementati
 - `vocab_proposals.yaml` is committed to git — it represents a human decision, not machine state
 - Resumable extraction: `extract_text.py` skips already-processed items; checkpoints every 100
 
-## PDF Access Notes (relevant for Phase 3)
-- Local cache at `/Users/bkrien/Zotero/storage/` is partial (~884/1151 items have PDFs)
-- Full collection is on WebDAV server (Raspberry Pi)
-- Plan: mount WebDAV share as network drive; code reads it like a local path
-- WebDAV credentials captured in secrets.yaml under `webdav:` key
+## PDF Access Notes
+- Local cache at `/Users/bkrien/Zotero/storage/` holds 952/955 attachments — nearly complete
+- Full collection also on WebDAV server (Raspberry Pi), mounted at `/Volumes/zotero`
+- WebDAV stores attachments as `<key>.zip` containing `full-text.pdf` — handled by `extract_text_from_zip()`
 - PDF text source tracked per item: "local", "webdav", or None
+- 880 items have usable text; 72 are scanned/image PDFs; 199 have no PDF attachment at all
