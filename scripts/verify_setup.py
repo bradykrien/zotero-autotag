@@ -91,7 +91,7 @@ def check_webdav_mount(config):
         print("  [SKIP] webdav_mount not set in secrets.yaml")
         return
 
-    mount_path = Path(mount_str)
+    mount_path = Path(mount_str).expanduser()
 
     if not mount_path.exists():
         print(f"  [FAIL] Mount point not found: {mount_path}")

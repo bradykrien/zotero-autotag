@@ -325,6 +325,31 @@ def load_proposals(path: Path) -> list[str]:
     return data.get("vocabulary", [])
 
 
+def load_proposals_with_descriptions(path: Path) -> tuple[list[str], dict[str, str]]:
+    """
+    Load the approved vocabulary and optional tag descriptions from the YAML file.
+
+    Returns a tuple of (tags, descriptions) where descriptions is a dict mapping
+    tag name → description string. Tags without a description entry are omitted
+    from the dict; the caller should fall back to the bare tag name for those.
+
+    This is the preferred loader for Phase 5 when tag descriptions are available,
+    as richer descriptions produce better embedding discrimination between tags
+    whose names share words (e.g. 'digital humanities' vs 'environmental humanities').
+    """
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(
+            f"\n\nvocab_proposals.yaml not found at {path}\n"
+            f"Run 'python scripts/generate_vocab.py' to generate it.\n"
+        )
+    with open(path) as f:
+        data = yaml.safe_load(f)
+    tags = data.get("vocabulary", [])
+    descriptions = data.get("descriptions", {})
+    return tags, descriptions
+
+
 # ── Internal helpers ──────────────────────────────────────────────────────────
 
 def _normalize_tag(tag) -> str:

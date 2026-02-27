@@ -21,11 +21,21 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 PROJECT_ROOT = Path(__file__).parent.parent
-ITEMS_WITH_TEXT = PROJECT_ROOT / "data" / "cache" / "items_with_text.json"
-ITEMS_CACHE = PROJECT_ROOT / "data" / "cache" / "items.json"
+ITEMS_WITH_TEXT  = PROJECT_ROOT / "data" / "cache" / "items_with_text.json"
+ITEMS_CACHE      = PROJECT_ROOT / "data" / "cache" / "items.json"
+ASSIGNMENTS_FILE = PROJECT_ROOT / "data" / "cache" / "tag_assignments.json"
 
 
 # ── Data loading ──────────────────────────────────────────────────────────────
+
+@st.cache_data
+def load_assignments() -> list[dict]:
+    """Load the dry-run tag assignments if available."""
+    if not ASSIGNMENTS_FILE.exists():
+        return []
+    with open(ASSIGNMENTS_FILE) as f:
+        return json.load(f)
+
 
 @st.cache_data
 def load_items() -> tuple[list[dict], str]:
@@ -141,8 +151,8 @@ if year_range:
 
 # ── Tabs ──────────────────────────────────────────────────────────────────────
 
-tab_overview, tab_types, tab_tags, tab_pdfs, tab_browse = st.tabs([
-    "Overview", "Item Types", "Tags", "PDF Coverage", "Browse"
+tab_overview, tab_types, tab_tags, tab_pdfs, tab_assignments, tab_browse = st.tabs([
+    "Overview", "Item Types", "Tags", "PDF Coverage", "Tag Assignments", "Browse"
 ])
 
 
@@ -310,7 +320,163 @@ with tab_pdfs:
         )
 
 
-# ── Tab 5: Browse ─────────────────────────────────────────────────────────────
+# ── Tab 5: Tag Assignments ────────────────────────────────────────────────────
+
+with tab_assignments:
+    assignments = load_assignments()
+
+    if not assignments:
+        st.info(
+            "No tag assignment preview found. "
+            "Run `python scripts/assign_tags.py` (dry run) to generate one."
+        )
+    else:
+        # ── Metrics ───────────────────────────────────────────────────────────
+        n_assigned  = sum(1 for a in assignments if a.get("proposed_tags"))
+        n_none      = sum(1 for a in assignments if not a.get("proposed_tags"))
+        all_scores  = [s for a in assignments for s in a.get("scores", {}).values()]
+        avg_tags    = (
+            sum(len(a["proposed_tags"]) for a in assignments) / len(assignments)
+            if assignments else 0
+        )
+
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Items processed", f"{len(assignments):,}")
+        with col2:
+            st.metric("Got ≥1 proposed tag", f"{n_assigned:,}",
+                      f"{n_assigned / len(assignments) * 100:.0f}%")
+        with col3:
+            st.metric("No tags proposed", f"{n_none:,}")
+        with col4:
+            st.metric("Avg proposed tags", f"{avg_tags:.1f}")
+
+        st.divider()
+        col_left, col_right = st.columns(2)
+
+        # ── Tag coverage bar chart ────────────────────────────────────────────
+        with col_left:
+            st.subheader("Proposed tag coverage")
+            tag_counts = Counter(
+                tag
+                for a in assignments
+                for tag in a.get("proposed_tags", [])
+            )
+            if tag_counts:
+                coverage_df = pd.DataFrame(
+                    tag_counts.most_common(),
+                    columns=["tag", "items"],
+                )
+                fig = px.bar(
+                    coverage_df,
+                    x="items",
+                    y="tag",
+                    orientation="h",
+                    labels={"tag": "Tag", "items": "Items assigned"},
+                    height=max(400, len(tag_counts) * 24),
+                )
+                fig.update_layout(
+                    yaxis={"categoryorder": "total ascending"},
+                    margin=dict(t=20),
+                )
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("No tags proposed across any items.")
+
+        # ── Score distribution ────────────────────────────────────────────────
+        with col_right:
+            st.subheader("Similarity score distribution")
+            if all_scores:
+                score_df = pd.DataFrame({"score": all_scores})
+                fig = px.histogram(
+                    score_df,
+                    x="score",
+                    nbins=40,
+                    labels={"score": "Cosine similarity score", "count": "Assignments"},
+                )
+                fig.update_layout(margin=dict(t=20))
+                st.plotly_chart(fig, use_container_width=True)
+                st.caption(
+                    f"{len(all_scores):,} total tag assignments | "
+                    f"min {min(all_scores):.3f} · median "
+                    f"{sorted(all_scores)[len(all_scores)//2]:.3f} · "
+                    f"max {max(all_scores):.3f}"
+                )
+
+            # Status breakdown pie
+            st.subheader("Assignment mode")
+            status_counts = Counter(a.get("status") for a in assignments)
+            status_df = pd.DataFrame(
+                [(k, v) for k, v in status_counts.items()],
+                columns=["status", "count"],
+            )
+            fig = px.pie(
+                status_df,
+                values="count",
+                names="status",
+                color="status",
+                color_discrete_map={
+                    "overwrite": "#4C72B0",
+                    "add_only":  "#55A868",
+                    "skipped":   "#C44E52",
+                },
+            )
+            fig.update_layout(margin=dict(t=20, b=0))
+            st.plotly_chart(fig, use_container_width=True)
+
+        st.divider()
+
+        # ── Browse assignments ────────────────────────────────────────────────
+        st.subheader("Browse assignments")
+
+        filter_col1, filter_col2 = st.columns(2)
+        with filter_col1:
+            status_options = ["All"] + sorted({a.get("status", "") for a in assignments})
+            status_filter = st.selectbox("Filter by status", status_options)
+        with filter_col2:
+            tag_filter_asgn = st.text_input("Filter by proposed tag (partial match)", "")
+
+        filtered_asgn = assignments
+        if status_filter != "All":
+            filtered_asgn = [a for a in filtered_asgn if a.get("status") == status_filter]
+        if tag_filter_asgn:
+            filtered_asgn = [
+                a for a in filtered_asgn
+                if any(tag_filter_asgn.lower() in t.lower() for t in a.get("proposed_tags", []))
+            ]
+
+        asgn_rows = [
+            {
+                "title":         a.get("title", "")[:80],
+                "type":          a.get("item_type", ""),
+                "status":        a.get("status", ""),
+                "existing_tags": ", ".join(a.get("existing_tags", [])),
+                "proposed_tags": ", ".join(a.get("proposed_tags", [])),
+                "final_tags":    ", ".join(a.get("final_tags", [])),
+                "top_score":     max(a.get("scores", {}).values(), default=None),
+            }
+            for a in filtered_asgn
+        ]
+        asgn_df = pd.DataFrame(asgn_rows)
+
+        st.dataframe(
+            asgn_df.reset_index(drop=True),
+            use_container_width=True,
+            height=500,
+            column_config={
+                "title":         st.column_config.TextColumn("Title", width="large"),
+                "type":          st.column_config.TextColumn("Type", width="small"),
+                "status":        st.column_config.TextColumn("Status", width="small"),
+                "existing_tags": st.column_config.TextColumn("Existing tags"),
+                "proposed_tags": st.column_config.TextColumn("Proposed tags"),
+                "final_tags":    st.column_config.TextColumn("Final tags"),
+                "top_score":     st.column_config.NumberColumn("Top score", format="%.3f"),
+            },
+        )
+        st.caption(f"Showing {len(filtered_asgn):,} of {len(assignments):,} assignments.")
+
+
+# ── Tab 6: Browse ─────────────────────────────────────────────────────────────
 
 with tab_browse:
     st.subheader(f"Browse items ({len(filtered):,} shown)")

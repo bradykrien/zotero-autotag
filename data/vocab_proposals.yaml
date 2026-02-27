@@ -6,6 +6,12 @@
 #   - Add, remove, or rename any tags
 #   - Keep style: lowercase noun phrases (e.g. 'book history', not 'historical')
 #   - This file is read directly by Phase 5 — save it when done editing
+#
+# Descriptions (optional, improve tag assignment accuracy):
+#   - Each tag can have a richer description used during embedding
+#   - The description replaces the bare tag name when computing semantic similarity
+#   - If a tag has no description, its name alone is used (original behavior)
+#   - Edit these to better reflect your library's specific use of each concept
 
 vocabulary:
   - academic writing
@@ -47,3 +53,44 @@ vocabulary:
   - time management
   - topic modeling
   - writing
+
+descriptions:
+  academic writing: "scholarly writing craft, style guides, argumentation, citation, and composition practices for academic and humanities research"
+  ai: "artificial intelligence, machine learning systems, neural networks, and their broad applications across domains"
+  archives: "archival science, primary source repositories, historical records management, provenance, and archival research methodology"
+  bibliography: "systematic description of books and documents, analytical and enumerative bibliography, and citation practices in scholarly publishing"
+  bibliometrics: "quantitative analysis of publications, citation counts, h-index, journal impact factors, and measurement of scholarly research output"
+  book history: "history of the book, print history, material text studies, publishing history, reading practices, and the book trade"
+  data practices: "research data management, data curation, open data, data sharing, reproducibility, and data governance in academic research"
+  digital humanities: "computational methods, text mining, digital archives, and data-driven analysis applied to humanistic scholarship"
+  digital scholarship: "digital tools and platforms for academic research, online publishing, web-based scholarly communication, and digital pedagogy"
+  environmental humanities: "ecocriticism, environmental history, ecological thought in the humanities, human-nature relations, and climate change in humanistic contexts"
+  ethics: "research ethics, professional ethics, algorithmic fairness, data privacy, and ethical frameworks in scholarship and technology"
+  history of science: "development of scientific knowledge and institutions, scientific method in historical context, and science studies"
+  infometrics: "quantitative information science, informetrics, webometrics, and measurement of information flows and scholarly communication patterns"
+  information literacy: "critical evaluation of sources, research skills, library instruction, and information competency for students and researchers"
+  information science: "organization of information, knowledge representation, information retrieval systems, and the structure of information"
+  infrastructure: "technical and organizational infrastructure supporting research computing, scholarly communication systems, and digital platforms"
+  intellectual property: "copyright, open access, licensing, fair use, and intellectual property law in academic publishing and creative contexts"
+  library science: "librarianship, library management, cataloging, classification, collection development, and library services"
+  llms: "large language models, GPT, generative AI text systems, and transformer-based language models"
+  math: "mathematics, statistics, probability, and formal quantitative methods"
+  ml: "machine learning algorithms, model training, supervised and unsupervised learning, classification, and predictive modeling"
+  museum studies: "museology, museum curation, exhibit design, cultural heritage institutions, and collections management"
+  natural language processing: "computational linguistics, text processing, named entity recognition, sentiment analysis, parsing, and language understanding systems"
+  network theory: "graph theory, network analysis, social network analysis, and complex network structures"
+  networking: "professional networking, academic communities, scholarly collaboration, and building research relationships"
+  pedagogy: "teaching, teaching methods, curriculum design, educational theory, and classroom practice in higher education and library instruction"
+  periodical studies: "history and analysis of periodicals, magazines, newspapers, journals, and serial publications as cultural and material objects"
+  print culture: "history of printing, typography, movable type, the press, and the cultural and social impact of printed media"
+  productivity: "academic productivity tools, workflow systems, and personal efficiency strategies for researchers and knowledge workers"
+  professional development: "career development, skills training, mentorship, and professional growth in academic, library, and research careers"
+  research assessment: "evaluation of research quality, grant metrics, academic performance indicators, and research impact measurement"
+  research management: "project management for academic research, grant administration, research coordination, and institutional research leadership"
+  research methods: "qualitative and quantitative research methodology, study design, data collection strategies, and analytical frameworks"
+  scholarly communication: "academic publishing, peer review, preprints, open access, and the dissemination of research findings"
+  sustainability: "environmental sustainability, sustainable institutional practices, and long-term stewardship of resources and systems"
+  technology and culture: "intersections of technology with society, cultural impacts of technological change, media studies, and science and technology studies"
+  time management: "scheduling, prioritization, work-life balance, and time allocation strategies for academics and knowledge workers"
+  topic modeling: "latent Dirichlet allocation, LDA, probabilistic topic models, and unsupervised computational methods for discovering themes in text corpora"
+  writing: "general writing practice, creative and professional writing, composition, prose style, and the craft of the writing process"

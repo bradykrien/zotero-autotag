@@ -31,7 +31,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from zotero_autotag.config import load_config
 from zotero_autotag.tag_assigner import TagAssigner, save_assignments, load_assignments
-from zotero_autotag.vocab_generator import load_proposals
+from zotero_autotag.vocab_generator import load_proposals_with_descriptions
 from zotero_autotag.zotero_connector import ZoteroConnector, load_cache
 
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -82,8 +82,10 @@ def _run_dry_run(config: dict, limit: int | None) -> None:
 
     # ── Load vocabulary ───────────────────────────────────────────────────────
     try:
-        vocabulary = load_proposals(VOCAB_FILE)
-        print(f"[OK] Vocabulary loaded ({len(vocabulary)} tags)")
+        vocabulary, descriptions = load_proposals_with_descriptions(VOCAB_FILE)
+        n_desc = sum(1 for t in vocabulary if t in descriptions)
+        print(f"[OK] Vocabulary loaded ({len(vocabulary)} tags, "
+              f"{n_desc} with descriptions)")
     except FileNotFoundError as e:
         print(f"[FAIL] {e}")
         sys.exit(1)
@@ -96,13 +98,13 @@ def _run_dry_run(config: dict, limit: int | None) -> None:
     n_protected = sum(
         1 for i in items if any(t in protected for t in i.get("tags", []))
     )
-    print(f"  Protected (skip) : {n_protected}  "
-          f"(have {', '.join(sorted(protected))})")
+    print(f"  Have protected tag : {n_protected}  "
+          f"({', '.join(sorted(protected))} preserved but not added/removed)")
 
     # ── Run tag assignment ────────────────────────────────────────────────────
     print(f"\n── Computing tag assignments ─────────────────────────")
     assigner = TagAssigner(config)
-    assignments = assigner.assign(items, vocabulary)
+    assignments = assigner.assign(items, vocabulary, descriptions=descriptions)
 
     # ── Save preview ──────────────────────────────────────────────────────────
     print(f"\n── Saving preview ───────────────────────────────────")
@@ -174,7 +176,7 @@ def _print_summary(assignments: list[dict], vocabulary: list[str] | None) -> Non
     avg = total_tags / n_assigned if n_assigned else 0
 
     print(f"\n── Assignment summary ───────────────────────────────")
-    print(f"  Skipped (protected) : {statuses.get('skipped', 0)}")
+    print(f"  Skipped             : {statuses.get('skipped', 0)}")
     print(f"  Overwrite (old)     : {statuses.get('overwrite', 0)}")
     print(f"  Add-only (recent)   : {statuses.get('add_only', 0)}")
     print(f"  Avg tags assigned   : {avg:.1f}")

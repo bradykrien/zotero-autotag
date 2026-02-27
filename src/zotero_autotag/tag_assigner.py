@@ -63,7 +63,12 @@ class TagAssigner:
         print(f"  Loading embedding model: {model_name}")
         self.model = SentenceTransformer(model_name)
 
-    def assign(self, items: list[dict], vocabulary: list[str]) -> list[dict]:
+    def assign(
+        self,
+        items: list[dict],
+        vocabulary: list[str],
+        descriptions: dict[str, str] | None = None,
+    ) -> list[dict]:
         """
         Compute tag assignments for all items and return a list of assignment dicts.
 
@@ -73,9 +78,22 @@ class TagAssigner:
           1. Embed all vocabulary tags (once — reused for every item)
           2. For each item, embed its text and compute similarities
           3. Apply business logic (skip/overwrite/add-only) and package results
+
+        If descriptions is provided, each tag is embedded as "<tag>: <description>"
+        instead of just the bare tag name. This significantly improves discrimination
+        between tags whose names share words (e.g. 'digital humanities' vs
+        'environmental humanities') because the model has richer context to work with.
+        The vocabulary list is still used for tag names in the output — descriptions
+        only affect the embedding, not what gets written to Zotero.
         """
-        print(f"  Embedding {len(vocabulary)} vocabulary tags...")
-        tag_embeddings = self.model.encode(vocabulary, convert_to_tensor=True)
+        tag_texts = [
+            f"{tag}: {descriptions[tag]}" if descriptions and tag in descriptions else tag
+            for tag in vocabulary
+        ]
+        n_with_desc = sum(1 for t in vocabulary if descriptions and t in descriptions)
+        print(f"  Embedding {len(vocabulary)} vocabulary tags "
+              f"({n_with_desc} with descriptions, {len(vocabulary) - n_with_desc} bare)...")
+        tag_embeddings = self.model.encode(tag_texts, convert_to_tensor=True)
 
         now = datetime.now(timezone.utc)
         assignments = []
@@ -104,20 +122,6 @@ class TagAssigner:
         """
         existing_tags = item.get("tags", [])
 
-        # ── Protected tag check ───────────────────────────────────────────────
-        # If the item has any protected tag, skip it entirely.
-        if any(t in self.protected for t in existing_tags):
-            return {
-                "key": item["key"],
-                "title": item.get("title", ""),
-                "item_type": item.get("item_type", ""),
-                "existing_tags": existing_tags,
-                "status": "skipped",
-                "proposed_tags": [],
-                "final_tags": existing_tags,
-                "scores": {},
-            }
-
         # ── Semantic similarity ───────────────────────────────────────────────
         text = self._item_text(item)
         item_embedding = self.model.encode(text, convert_to_tensor=True)
@@ -130,11 +134,19 @@ class TagAssigner:
         age_days = _item_age_days(item, now)
         is_old = age_days > self.horizon_days
 
+        # Protected tags (e.g. "tbr") are always preserved in final_tags.
+        # They are never added or removed — we can tag the item, we just
+        # carry any protected tags through unchanged.
+        protected_existing = [t for t in existing_tags if t in self.protected]
+
         if is_old:
-            final_tags = list(proposed_tags)
+            # Overwrite: replace non-protected tags with proposed tags,
+            # but always keep any protected tags the item already has.
+            final_tags = protected_existing + proposed_tags
             status = "overwrite"
         else:
-            # Add-only: keep all existing tags, add proposed ones not already present
+            # Add-only: keep all existing tags (including protected ones),
+            # add proposed ones not already present.
             existing_set = set(existing_tags)
             additions = [t for t in proposed_tags if t not in existing_set]
             final_tags = list(existing_tags) + additions
